@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Space Flight Trainer</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(circle at 35% 20%, #12335a, #030712 65%);
+      font-family: Inter, system-ui, sans-serif;
+      color: #d9ecff;
+      touch-action: manipulation;
+    }
+    .app { width: min(1300px, 96vw); margin: 10px auto; }
+
+    .menu {
+      display: grid;
+      grid-template-columns: 300px 1fr 340px;
+      gap: 12px;
+      min-height: 82vh;
+      border: 1px solid #1c3e66;
+      background: linear-gradient(180deg, rgba(4,12,24,.96), rgba(3,9,20,.96));
+      border-radius: 14px;
+      overflow: hidden;
+      box-shadow: 0 0 26px #000b1d;
+    }
+
+    .panel { border: 1px solid #1f456f; margin: 10px; border-radius: 10px; background: rgba(2,11,24,.75); }
+    .left h2 { margin: 14px; font-size: 2rem; letter-spacing: .06em; }
+    .ship-list { padding: 0 10px 10px; display: grid; gap: 10px; }
+    .ship-card {
+      border: 1px solid #244c75; border-radius: 10px; padding: 10px; background: #07172b;
+      display: grid; grid-template-columns: 64px 1fr; gap: 10px; align-items: center; cursor: pointer;
+    }
+    .ship-card.active { border-color: #ffd24a; box-shadow: 0 0 12px rgba(255,210,74,.35) inset; }
+    .icon { width: 64px; height: 54px; border-radius: 8px; background: linear-gradient(140deg, #8498af, #1f2f44); }
+    .ship-card h3 { margin: 0; font-size: 1.15rem; }
+    .ship-card p { margin: 2px 0; opacity: .85; }
+    .tag { display: inline-block; margin-top: 4px; font-size: .8rem; border: 1px solid #4ba4ff; color: #72bdff; border-radius: 6px; padding: 2px 8px; }
+
+    .center {
+      position: relative; border: 1px solid #1f456f; margin: 10px 0; border-radius: 10px;
+      background: radial-gradient(circle at 35% 25%, #224b73, #071424 60%, #03070f 100%);
+      overflow: hidden;
+    }
+    .center::before {
+      content: ''; position: absolute; inset: 0;
+      background-image: radial-gradient(#d8ecff 1px, transparent 1px);
+      background-size: 3px 3px; opacity: .2;
+    }
+    .ship-preview {
+      position: absolute; inset: 0; display: grid; place-items: center; z-index: 1;
+      font-size: min(30vw, 300px); filter: drop-shadow(0 0 30px rgba(120,180,255,.35));
+    }
+    .preview-name { position: absolute; top: 14px; left: 14px; z-index: 1; letter-spacing: .1em; opacity: .9; }
+
+    .right { padding: 12px; }
+    .right h2 { margin: 0; font-size: 2.3rem; letter-spacing: .06em; }
+    .role { color: #ffd252; margin-top: 2px; }
+    .desc { line-height: 1.45; opacity: .9; }
+    .stats { margin-top: 10px; display: grid; gap: 8px; }
+    .row { display: grid; grid-template-columns: 120px 1fr; align-items: center; gap: 8px; }
+    .bar { height: 12px; border: 1px solid #2e567e; background: #0a1b30; border-radius: 999px; overflow: hidden; }
+    .fill { height: 100%; background: linear-gradient(90deg, #4bb2ff, #ffd04a); }
+
+    .launch {
+      width: 100%; border: 1px solid #23a55e; background: linear-gradient(180deg, #2ddd7d, #12894a);
+      color: #042612; font-weight: 800; letter-spacing: .08em; border-radius: 12px; padding: 14px; margin-top: 12px; font-size: 1.3rem;
+    }
+    .game { display: none; }
+
+    .topbar { margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+    .back { border: 1px solid #2a5d88; background: #0b1e34; color: #c8e8ff; border-radius: 8px; padding: 8px 10px; }
+
+    .hud { display: grid; grid-template-columns: repeat(6, 1fr); gap: .45rem; margin: .4rem 0; }
+    .card { background: #081426; border: 1px solid #274866; border-radius: 10px; padding: .45rem; font-size: .9rem; }
+    .msg { grid-column: 1 / -1; }
+    canvas { width: 100%; aspect-ratio: 16/9; border-radius: 12px; border: 1px solid #32597f; background: #020611; touch-action: none; }
+
+    .touch-controls { display: none; margin-top: .65rem; gap: .7rem; grid-template-columns: 1fr 1fr; }
+    .touch-pad, .touch-buttons { background: #081426; border: 1px solid #274866; border-radius: 12px; padding: .7rem; }
+    .touch-pad { position: relative; height: 130px; }
+    .touch-knob { width: 52px; height: 52px; border-radius: 50%; background: #2f5f88; border: 1px solid #77ade0; position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; }
+    .btn-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: .55rem; }
+    .touch-btn { border: 1px solid #3d6488; background: #18324f; color: #e9f6ff; border-radius: 10px; padding: .8rem; font-weight: 700; }
+    .touch-btn:active, .touch-btn.active { background: #28507a; }
+    @media (hover: none), (pointer: coarse) { .touch-controls { display: grid; } }
+    @media (max-width: 1024px) {
+      .menu { grid-template-columns: 1fr; }
+      .center { min-height: 260px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+  <section id="menu" class="menu">
+    <aside class="left panel">
+      <h2>SHIP SELECTION</h2>
+      <div class="ship-list" id="shipList"></div>
+    </aside>
+
+    <section class="center">
+      <div class="preview-name" id="previewName">VENTURA</div>
+      <div class="ship-preview" id="shipPreview">🚀</div>
+    </section>
+
+    <aside class="right panel">
+      <h2 id="name">VENTURA</h2>
+      <div class="role" id="role">Twin-Hull Interceptor</div>
+      <p class="desc" id="desc"></p>
+      <div class="stats" id="stats"></div>
+      <button class="launch" id="launchBtn">LAUNCH</button>
+    </aside>
+  </section>
+
+  <section id="game" class="game">
+    <div class="topbar"><h1>🚀 Space Flight Trainer</h1><button id="backBtn" class="back">← Back to Menu</button></div>
+    <section class="hud">
+      <div class="card">Phase: <strong id="phase">Boot</strong></div>
+      <div class="card">Objective: <strong id="objective">-</strong></div>
+      <div class="card">Speed: <strong id="speed">0</strong></div>
+      <div class="card">Fuel: <strong id="fuel">0</strong></div>
+      <div class="card">Hull: <strong id="hull">0</strong></div>
+      <div class="card">Score: <strong id="score">0</strong></div>
+      <div class="card msg" id="msg">Press T or tap START to begin your training run.</div>
+    </section>
+    <canvas id="sim" width="960" height="540"></canvas>
+    <section class="touch-controls">
+      <div class="touch-pad" id="touchPad"><div class="touch-knob" id="touchKnob"></div></div>
+      <div class="touch-buttons"><div class="btn-grid">
+        <button class="touch-btn" id="btnThrust">THRUST</button><button class="touch-btn" id="btnBrake">BRAKE</button>
+        <button class="touch-btn" id="btnStart">START</button><button class="touch-btn" id="btnReset">RESET</button>
+      </div></div>
+    </section>
+  </section>
+</div>
+
+<script>
+const ships=[
+  {id:'ventura',name:'VENTURA',role:'Twin-Hull Interceptor',tag:'AGILE',emoji:'🚀',desc:'High agility and top acceleration. Harder to stabilize at high speed.',stats:{Maneuver:92,Thrust:86,Shield:45,Hull:58,Cargo:22},mods:{turn:1.2,thrust:1.15,hull:0.85,fuel:0.95}},
+  {id:'hauler',name:'HAULER',role:'Cargo Transport',tag:'STABLE',emoji:'🛰️',desc:'Heavy, stable platform. Easy control and stronger integrity.',stats:{Maneuver:56,Thrust:58,Shield:72,Hull:88,Cargo:95},mods:{turn:0.8,thrust:0.86,hull:1.2,fuel:1.15}},
+  {id:'raptor',name:'RAPTOR',role:'Light Fighter',tag:'FAST',emoji:'🛸',desc:'Very fast and responsive. Minimal hull margin for mistakes.',stats:{Maneuver:84,Thrust:94,Shield:38,Hull:50,Cargo:18},mods:{turn:1.1,thrust:1.22,hull:0.8,fuel:0.9}}
+];
+let selected=ships[0];
+const menu=document.getElementById('menu'), game=document.getElementById('game');
+const shipList=document.getElementById('shipList'), preview=document.getElementById('shipPreview'), previewName=document.getElementById('previewName');
+const elName=document.getElementById('name'), elRole=document.getElementById('role'), elDesc=document.getElementById('desc'), elStats=document.getElementById('stats');
+
+function renderShipMenu(){
+  shipList.innerHTML='';
+  for(const s of ships){
+    const card=document.createElement('button');
+    card.className=`ship-card ${s.id===selected.id?'active':''}`;
+    card.innerHTML=`<div class="icon"></div><div><h3>${s.name}</h3><p>${s.role}</p><span class="tag">${s.tag}</span></div>`;
+    card.onclick=()=>{selected=s; renderShipMenu(); syncShipDetails();};
+    shipList.append(card);
+  }
+}
+function syncShipDetails(){
+  preview.textContent=selected.emoji; previewName.textContent=selected.name;
+  elName.textContent=selected.name; elRole.textContent=selected.role; elDesc.textContent=selected.desc;
+  elStats.innerHTML='';
+  Object.entries(selected.stats).forEach(([k,v])=>{const row=document.createElement('div'); row.className='row'; row.innerHTML=`<span>${k}</span><div class="bar"><div class="fill" style="width:${v}%"></div></div>`; elStats.append(row);});
+}
+renderShipMenu(); syncShipDetails();
+
+document.getElementById('launchBtn').onclick=()=>{menu.style.display='none'; game.style.display='block'; reset();};
+document.getElementById('backBtn').onclick=()=>{game.style.display='none'; menu.style.display='grid';};
+
+const canvas = document.getElementById('sim'); const ctx = canvas.getContext('2d');
+const ui={phase:phase,objective:objective,speed:speed,fuel:fuel,hull:hull,score:score,msg:msg};
+const keys=new Set(); const touchInput={steer:0,thrust:false,brake:false,start:false,reset:false};
+addEventListener('keydown', e=>{keys.add(e.key.toLowerCase()); if(e.key===' ') e.preventDefault();}); addEventListener('keyup', e=>keys.delete(e.key.toLowerCase()));
+const knob=touchKnob, pad=touchPad;
+function hold(btn,key){btn.addEventListener('pointerdown',e=>{e.preventDefault();touchInput[key]=true;btn.classList.add('active');}); const end=()=>{touchInput[key]=false;btn.classList.remove('active');}; btn.addEventListener('pointerup',end); btn.addEventListener('pointercancel',end); btn.addEventListener('pointerleave',end);} 
+hold(btnThrust,'thrust'); hold(btnBrake,'brake'); btnStart.addEventListener('pointerdown',e=>{e.preventDefault();touchInput.start=true;setTimeout(()=>touchInput.start=false,120);}); btnReset.addEventListener('pointerdown',e=>{e.preventDefault();touchInput.reset=true;setTimeout(()=>touchInput.reset=false,120);});
+let padPointer=null; pad.addEventListener('pointerdown',e=>{padPointer=e.pointerId; pad.setPointerCapture(e.pointerId); movePad(e);}); pad.addEventListener('pointermove',e=>{if(e.pointerId===padPointer) movePad(e);});
+function releasePad(e){if(e.pointerId!==padPointer)return; padPointer=null; touchInput.steer=0; knob.style.left='50%'; knob.style.top='50%';}
+pad.addEventListener('pointerup',releasePad); pad.addEventListener('pointercancel',releasePad);
+function movePad(e){const r=pad.getBoundingClientRect(); const dx=e.clientX-(r.left+r.width/2); const dy=e.clientY-(r.top+r.height/2); const max=40; const x=Math.max(-max,Math.min(max,dx)); const y=Math.max(-max,Math.min(max,dy)); touchInput.steer=x/max; knob.style.left=`${50+(x/max)*28}%`; knob.style.top=`${50+(y/max)*28}%`;}
+
+const rand=(a,b)=>Math.random()*(b-a)+a; let state;
+function freshState(){
+  return {ship:{x:120,y:400,vx:0,vy:0,angle:-0.9,fuel:100*selected.mods.fuel,hull:100*selected.mods.hull},stars:Array.from({length:140},()=>({x:rand(0,960),y:rand(0,540),z:rand(.3,1.3)})),asteroids:Array.from({length:7},()=>({x:rand(220,900),y:rand(60,500),r:rand(16,30)})),gateIndex:0,gates:[{x:250,y:380,r:34},{x:390,y:270,r:34},{x:530,y:330,r:34},{x:670,y:230,r:34},{x:790,y:300,r:34}],dock:{x:890,y:100,r:36},stage:0,stageName:'Boot',objective:'Press T / START to begin',message:'Welcome pilot.',started:false,done:false,score:0,timer:0};
+}
+const reset=()=>{state=freshState();};
+function nextStage(){state.stage++; if(state.stage===1){state.stageName='Orientation';state.objective='Rotate ship to face right (0° ± 15°)';state.message='Steer left/right.';} else if(state.stage===2){state.stageName='Velocity Control';state.objective='Reach and hold speed 35-45 for 2s';state.message='Use thrust and brake.';state.timer=0;} else if(state.stage===3){state.stageName='Slalom';state.objective='Fly through 5 green gates';state.message='Avoid red asteroids.';} else if(state.stage===4){state.stageName='Docking';state.objective='Dock below 24 m/s';state.message='Approach gently.';} else {state.stageName='Mission Complete';state.objective='Training passed';state.message='Excellent flying.';state.done=true;}}
+function crash(m){state.stageName='Mission Failed';state.objective='Press R or RESET';state.message=m;state.done=true;}
+function update(dt){ if(game.style.display==='none') return; if(keys.has('r')||touchInput.reset) reset(); if(!state.started&&(keys.has('t')||touchInput.start)){state.started=true;nextStage();} if(!state.started||state.done) return; const s=state.ship; const thrust=(keys.has('w')||keys.has('arrowup')||touchInput.thrust); const brake=keys.has(' ')||touchInput.brake; const left=keys.has('a')||keys.has('arrowleft')||touchInput.steer<-0.15; const right=keys.has('d')||keys.has('arrowright')||touchInput.steer>0.15;
+if(left) s.angle-=(2.4+Math.abs(touchInput.steer))*selected.mods.turn*dt; if(right) s.angle+=(2.4+Math.abs(touchInput.steer))*selected.mods.turn*dt; if(thrust&&s.fuel>0){s.vx+=Math.cos(s.angle)*130*selected.mods.thrust*dt; s.vy+=Math.sin(s.angle)*130*selected.mods.thrust*dt; s.fuel-=10*dt;} if(brake){s.vx*=Math.pow(0.22,dt); s.vy*=Math.pow(0.22,dt);} s.vx*=Math.pow(.99,dt*60); s.vy*=Math.pow(.99,dt*60); s.x+=s.vx*dt; s.y+=s.vy*dt; const speed=Math.hypot(s.vx,s.vy);
+if(s.x<10||s.x>950||s.y<10||s.y>530){s.hull-=45*dt; s.x=Math.max(10,Math.min(950,s.x)); s.y=Math.max(10,Math.min(530,s.y));} for(const a of state.asteroids){if(Math.hypot(s.x-a.x,s.y-a.y)<a.r+8){s.hull-=35*dt;s.vx*=.95;s.vy*=.95;}}
+if(state.stage===1){const facing=Math.abs(Math.atan2(Math.sin(s.angle),Math.cos(s.angle))); if(facing<.26){state.score+=120;nextStage();}} if(state.stage===2){if(speed>=35&&speed<=45) state.timer+=dt; else state.timer=Math.max(0,state.timer-dt*.7); if(state.timer>=2){state.score+=200;nextStage();}} if(state.stage===3){const g=state.gates[state.gateIndex]; if(g&&Math.hypot(s.x-g.x,s.y-g.y)<g.r){state.gateIndex++;state.score+=100;if(state.gateIndex>=state.gates.length) nextStage();}} if(state.stage===4){if(Math.hypot(s.x-state.dock.x,s.y-state.dock.y)<state.dock.r){if(speed<=24){state.score+=Math.max(300,Math.floor(s.hull*5+s.fuel*4));nextStage();} else crash('Docking impact too hard.');}}
+if(s.fuel<=0&&speed<2&&state.stage<4) crash('Out of fuel.'); if(s.hull<=0) crash('Hull integrity lost.');
+ui.phase.textContent=state.stageName; ui.objective.textContent=state.objective; ui.speed.textContent=speed.toFixed(1); ui.fuel.textContent=`${Math.max(0,s.fuel).toFixed(0)}%`; ui.hull.textContent=`${Math.max(0,s.hull).toFixed(0)}%`; ui.score.textContent=state.score; ui.msg.textContent=state.message;}
+function drawShip(s){ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.angle);ctx.beginPath();ctx.moveTo(16,0);ctx.lineTo(-12,-8);ctx.lineTo(-8,0);ctx.lineTo(-12,8);ctx.closePath();ctx.fillStyle='#def6ff';ctx.fill();ctx.strokeStyle='#6ec1ff';ctx.stroke(); if((keys.has('w')||keys.has('arrowup')||touchInput.thrust)&&s.fuel>0&&state.started&&!state.done){ctx.beginPath();ctx.moveTo(-12,-4);ctx.lineTo(-24-Math.random()*12,0);ctx.lineTo(-12,4);ctx.fillStyle='#ff9e58';ctx.fill();} ctx.restore();}
+function render(){ if(game.style.display==='none') return; ctx.clearRect(0,0,960,540); for(const st of state.stars){ctx.fillStyle=`rgba(180,220,255,${st.z})`;ctx.fillRect(st.x,st.y,st.z*1.5,st.z*1.5);} for(const a of state.asteroids){ctx.beginPath();ctx.arc(a.x,a.y,a.r,0,Math.PI*2);ctx.fillStyle='#5e3030';ctx.fill();ctx.strokeStyle='#a35d5d';ctx.stroke();} if(state.stage>=3){state.gates.forEach((g,i)=>{if(i<state.gateIndex)return;ctx.beginPath();ctx.arc(g.x,g.y,g.r,0,Math.PI*2);ctx.strokeStyle=i===state.gateIndex?'#78ffc0':'#2e785c';ctx.lineWidth=i===state.gateIndex?4:2;ctx.stroke();});} if(state.stage>=4){ctx.beginPath();ctx.arc(state.dock.x,state.dock.y,state.dock.r,0,Math.PI*2);ctx.fillStyle='rgba(103,170,255,.2)';ctx.fill();ctx.strokeStyle='#73b6ff';ctx.lineWidth=4;ctx.stroke();} drawShip(state.ship); if(!state.started||state.done){ctx.fillStyle='rgba(4,8,20,.66)';ctx.fillRect(0,0,960,540);ctx.fillStyle='#edf8ff';ctx.textAlign='center';ctx.font='bold 40px system-ui';ctx.fillText(state.stageName,480,250);ctx.font='20px system-ui';ctx.fillText(state.objective,480,290);ctx.fillText(state.done?'Press R/RESET to retry.':'Press T/START to begin.',480,330);}}
+let last=performance.now(); function loop(t){const dt=Math.min((t-last)/1000,.033);last=t; update(dt); render(); requestAnimationFrame(loop);} reset(); requestAnimationFrame(loop);
+</script>
+</body>
+</html>
